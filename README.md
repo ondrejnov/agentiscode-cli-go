@@ -51,7 +51,9 @@ Target vyžaduje čistý pracovní strom a Git remote `origin` (lze změnit pře
 lokálně; po vyřešení chyby stačí `git push origin refs/tags/v1.2.3`.
 
 GitHub Actions po pushnutí tagu `vX.Y.Z` spustí vet a testy na Linuxu, Windows
-a macOS. Poté sestaví binárky pro **amd64 i arm64** a zveřejní GitHub Release
+a macOS. CI používá aktuální stabilní Go kvůli kompatibilitě s novými verzemi
+macOS; `go.mod` určuje minimální podporovanou verzi Go. Poté sestaví binárky
+pro **amd64 i arm64** a zveřejní GitHub Release
 s automatickými release notes a souborem `SHA256SUMS`. Přílohy mají názvy:
 
 - `agentiscode_v1.2.3_linux_amd64`, `agentiscode_v1.2.3_linux_arm64`
