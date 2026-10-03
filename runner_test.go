@@ -117,6 +117,13 @@ func TestRealSubprocessAdaptersAndPrompt(t *testing.T) {
 	for _, adapter := range []string{OpenCode, Claude, ClaudeP} {
 		t.Run(adapter, func(t *testing.T) {
 			c := fakeRuntime(t, adapter, adapter)
+			// Exercise aliased paths on every Unix platform, like /var -> /private/var
+			// on macOS. The subprocess may report the resolved working directory.
+			cwdLink := filepath.Join(t.TempDir(), "cwd")
+			if err := os.Symlink(c.Cwd, cwdLink); err != nil {
+				t.Fatal(err)
+			}
+			c.Cwd = cwdLink
 			c.Model = "model"
 			c.Effort = "high"
 			capture := filepath.Join(c.Cwd, "capture.json")
@@ -139,8 +146,26 @@ func TestRealSubprocessAdaptersAndPrompt(t *testing.T) {
 				t.Fatal(err)
 			}
 			p := decode(t, string(data))
-			if p["prompt"] != prompt || p["cwd"] != c.Cwd || p["sandbox"] != "1" {
-				t.Fatal("stdin/cwd/env mismatch")
+			if p["prompt"] != prompt {
+				t.Error("stdin prompt mismatch")
+			}
+			if p["sandbox"] != "1" {
+				t.Errorf("IS_SANDBOX = %v, want 1", p["sandbox"])
+			}
+			gotCwd, ok := p["cwd"].(string)
+			if !ok {
+				t.Fatalf("cwd is not a string: %v", p["cwd"])
+			}
+			gotDir, err := os.Stat(gotCwd)
+			if err != nil {
+				t.Fatalf("stat subprocess cwd %q: %v", gotCwd, err)
+			}
+			wantDir, err := os.Stat(c.Cwd)
+			if err != nil {
+				t.Fatalf("stat configured cwd %q: %v", c.Cwd, err)
+			}
+			if !os.SameFile(gotDir, wantDir) {
+				t.Errorf("cwd = %q, want the same directory as %q", gotCwd, c.Cwd)
 			}
 			for _, arg := range list(p["args"]) {
 				if arg == prompt {
